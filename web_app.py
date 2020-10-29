@@ -57,7 +57,6 @@ elif app_mode == "Show JD similarity":
 
 
 elif app_mode == "Show named entities":
-    nlp = load_model("models/NER_2")
     text = st.text_area("Input the JD as plaintext or as a URL")
     is_url = st.checkbox('Is your input a URL?')
     headers = {'Content-Type': 'application/json'}
