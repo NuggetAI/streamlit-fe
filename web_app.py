@@ -9,8 +9,8 @@ import requests
 import streamlit as st
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from spacy_streamlit import load_model
 
+base_url = 'http://ml-algo-loadbalancer-2c1fda7b0f7bd52d.elb.us-east-2.amazonaws.com/'
 nltk.download('stopwords')
 attrs = ["text", "label_", "start", "end", "start_char", "end_char"]
 
@@ -30,7 +30,7 @@ if app_mode == "Collect JD details":
     data = json.dumps({"url": url, "is_text": is_text})
     # we only send it once the button is pressed to prevent preemptive erring
     if st.button("Press to send query"):
-        response = requests.get("http://13.58.185.40:6000/", headers=headers, data=data)
+        response = requests.get(f"{base_url}/", headers=headers, data=data)
         st.json(response.json())
 
 
@@ -52,7 +52,7 @@ elif app_mode == "Show JD similarity":
          "aws_key": access_key, "aws_secret_key": secret_key})
     # send the request and print the results
     if st.button("Press to send query"):
-        response = requests.get("http://13.58.185.40:6000/similarity", headers=headers, data=data)
+        response = requests.get(f"{base_url}/similarity", headers=headers, data=data)
         st.json(response.json())
 
 
@@ -62,7 +62,7 @@ elif app_mode == "Show named entities":
     headers = {'Content-Type': 'application/json'}
     data = json.dumps({"text": text, "is_url": is_url})
     if st.button('Press to send query'):
-        response = requests.get("http://13.58.185.40:6000/NER", headers=headers, data=data)
+        response = requests.get(f"{base_url}/NER", headers=headers, data=data)
         st.json(response.json())
 
 elif app_mode == "Get years of experience":
@@ -70,7 +70,7 @@ elif app_mode == "Get years of experience":
     headers = {'Content-Type': 'application/json'}
     data = json.dumps({"text": text})
     if st.button('Press to send query'):
-        response = requests.get("http://13.58.185.40:6000/experience", headers=headers, data=data)
+        response = requests.get(f"{base_url}/experience", headers=headers, data=data)
         st.json(response.json())
 
 elif app_mode == "Visualize NER training data":
