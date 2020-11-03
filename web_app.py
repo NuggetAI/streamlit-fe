@@ -70,7 +70,7 @@ elif app_mode == "Get years of experience":
     headers = {'Content-Type': 'application/json'}
     data = json.dumps({"text": text})
     if st.button('Press to send query'):
-        response = requests.get(f"{base_url}/experience", headers=headers, data=data)
+        response = requests.get(f"{base_url}/experience", headers=headers, data=data, timeout=None)
         st.json(response.json())
 
 elif app_mode == "Visualize NER training data":
