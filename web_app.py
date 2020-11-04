@@ -18,16 +18,33 @@ attrs = ["text", "label_", "start", "end", "start_char", "end_char"]
 st.title("JD Algorithm")
 st.set_option('deprecation.showfileUploaderEncoding', False)
 # This lets us select different screens in streamlits sidebar
-app_mode = st.sidebar.selectbox("Choose the app mode",
-                                ["Collect JD details", "Show named entities", "Show JD similarity",
-                                 "Visualize NER training data", "Get years of experience"])
+app_mode = st.sidebar.radio("Choose the app mode",
+                            ["Collect JD details", "Show JD similarity",
+                             "Visualize NER training data"])
 
 if app_mode == "Collect JD details":
     # we grab a url from the user and send it by http request to the endpoint we want
+    st.header("Collect Job Description Information")
+    st.subheader("""
+                    This route is for collecting information related to a given job description.
+    
+                    It can give you general information such as the title of the job and the company as well as more unique insights
+                    such as what soft skills are relevant to the job and where are they present in the text as well as the years of experience certain skills require.
+                    To use the API 
+                    
+                    -   paste in the URL to the job description you are searching for,
+                     make sure the URL is to the Job page and not your search page!
+                    
+                    -   Use the checkboxes to indicate what information you want to get 
+                    from the API and then send it off!"""
+                 )
+
     url = str(st.text_area("url"))
     is_text = st.checkbox("Is your input plaintext?")
+    ent = st.checkbox("Would you like to see soft skills labeled?")
+    exp = st.checkbox("Would you like to see years of experience labeled?")
     headers = {'Content-Type': 'application/json'}
-    data = json.dumps({"url": url, "is_text": is_text})
+    data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
     # we only send it once the button is pressed to prevent preemptive erring
     if st.button("Press to send query"):
         response = requests.get(f"{base_url}/", headers=headers, data=data)
@@ -35,8 +52,22 @@ if app_mode == "Collect JD details":
 
 
 elif app_mode == "Show JD similarity":
-    access_key = st.sidebar.text_input("What is your AWS Access Key")
-    secret_key = st.sidebar.text_input("What is your AWS Secret Key", type='password')
+    st.header("Show how similarity in job descriptions and resumes")
+    st.subheader("""
+                        This route is for describing the similarity between job descriptions and resumes.
+
+                        The API will output a list of resumes and the result of how similar each one was to the given JD 
+
+                        -   First supply your AWS credentials. This will be necessary for accessing your s3 bucket
+
+                        -   Are you inputting data as a list of URLS or plaintext, use the checkboxes to specify your
+                        input type
+                        
+                        -   Query the API when you are done!
+                        """
+                 )
+    access_key = st.text_input("What is your AWS Access Key")
+    secret_key = st.text_input("What is your AWS Secret Key", type='password')
     is_url = st.checkbox('Is your data URLs or text? check box for URLs')
     resume_bucket = st.text_input('What is the name of your s3 bucket?')
     bucket_folder = st.text_input(
@@ -55,27 +86,25 @@ elif app_mode == "Show JD similarity":
         response = requests.get(f"{base_url}/similarity", headers=headers, data=data)
         st.json(response.json())
 
-
-elif app_mode == "Show named entities":
-    text = st.text_area("Input the JD as plaintext or as a URL")
-    is_url = st.checkbox('Is your input a URL?')
-    headers = {'Content-Type': 'application/json'}
-    data = json.dumps({"text": text, "is_url": is_url})
-    if st.button('Press to send query'):
-        response = requests.get(f"{base_url}/NER", headers=headers, data=data)
-        st.json(response.json())
-
-elif app_mode == "Get years of experience":
-    text = st.text_area("Input a resume or JD as text", height=500)
-    headers = {'Content-Type': 'application/json'}
-    data = json.dumps({"text": text})
-    if st.button('Press to send query'):
-        response = requests.get(f"{base_url}/experience", headers=headers, data=data, timeout=None)
-        st.json(response.json())
-
 elif app_mode == "Visualize NER training data":
+    st.header("Visualize training data from the Named Entity model")
+    st.subheader("""
+                        This route is for collecting information about the data used to train NER models.
+
+                        This page can lead to insights about what language 
+
+                        -   paste in the URL to the job description you are searching for,
+                         make sure the URL is to the Job page and not your search page!
+
+                        -   Use the checkboxes to indicate what information you want to get 
+                        from the API and then send it off!"""
+                 )
     file = st.file_uploader("Upload an NER manifest file")
     # Upload a training manifest file and visualize it
+    use_ex = st.checkbox("Would you like to use an example file?")
+    if use_ex:
+        file = open('NER-new.manifest', encoding='utf-8')
+
     if file is not None:
         reader = jsonlines.Reader(file)
         lemma = WordNetLemmatizer()
@@ -124,7 +153,7 @@ elif app_mode == "Visualize NER training data":
                               default=("teamwork", "problem solving ", "interpersonal sensitivity", "organization",
                                        "communication",
                                        "leadership", "project management"))
-        # filter the datafrome based on the number of occurrences of a word
+        # filter the dataframe based on the number of occurrences of a word
         filter_num = st.slider("How many minimum occurrences do you need", 0, 100, value=15)
         df = df[cols]
         df['sums'] = df.sum(axis=1)
