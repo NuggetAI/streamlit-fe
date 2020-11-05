@@ -10,7 +10,7 @@ import streamlit as st
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-base_url = 'http://ml-algo-loadbalancer-2c1fda7b0f7bd52d.elb.us-east-2.amazonaws.com/'
+base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production/'
 nltk.download('stopwords')
 attrs = ["text", "label_", "start", "end", "start_char", "end_char"]
 
