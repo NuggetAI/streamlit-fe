@@ -47,7 +47,7 @@ if app_mode == "Collect JD details":
     data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
     # we only send it once the button is pressed to prevent preemptive erring
     if st.button("Press to send query"):
-        response = requests.get(f"{base_url}/", headers=headers, data=data)
+        response = requests.post(f"{base_url}/job-details", headers=headers, data=data)
         st.json(response.json())
 
 
@@ -83,7 +83,7 @@ elif app_mode == "Show JD similarity":
          "aws_key": access_key, "aws_secret_key": secret_key})
     # send the request and print the results
     if st.button("Press to send query"):
-        response = requests.get(f"{base_url}/similarity", headers=headers, data=data)
+        response = requests.post(f"{base_url}/similarity", headers=headers, data=data)
         st.json(response.json())
 
 elif app_mode == "Visualize NER training data":
