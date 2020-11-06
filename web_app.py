@@ -10,8 +10,9 @@ import streamlit as st
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production/'
+base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production'
 nltk.download('stopwords')
+nltk.download('wordnet')
 attrs = ["text", "label_", "start", "end", "start_char", "end_char"]
 
 # here we are using streamlit to enable a webapp for the API
@@ -45,6 +46,17 @@ if app_mode == "Collect JD details":
     exp = st.checkbox("Would you like to see years of experience labeled?")
     headers = {'Content-Type': 'application/json'}
     data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
+    example = {
+        "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
+        "is_text": False,
+        "get_ents": True,
+        "get_exp": True}
+
+    st.subheader("Example Query")
+    st.json(example)
+    test = st.checkbox("Would you like to use the test query as an example?")
+    if test:
+        data = json.dumps(example)
     # we only send it once the button is pressed to prevent preemptive erring
     if st.button("Press to send query"):
         response = requests.post(f"{base_url}/job-details", headers=headers, data=data)
