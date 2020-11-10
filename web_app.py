@@ -109,12 +109,8 @@ elif app_mode == "Show JD similarity":
         for i, resume in enumerate(resumes):
             stream = io.BytesIO(resume.getvalue())
             files.append((f"resume_{resume.name}", stream))
-        st.json(files)
-        from sys import getsizeof
-
-        st.write(getsizeof(files[0][1]))
         if st.button("Press to send query"):
-            response = requests.post('http://127.0.0.1:6000/similarity', files=files)
+            response = requests.post(f'{base_url}/similarity', files=files)
             st.json(response.json())
 
 
