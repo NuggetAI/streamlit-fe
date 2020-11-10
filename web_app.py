@@ -1,3 +1,4 @@
+import io
 import json
 import string
 from ast import literal_eval
@@ -13,7 +14,6 @@ from nltk.stem import WordNetLemmatizer
 base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production'
 nltk.download('stopwords')
 nltk.download('wordnet')
-attrs = ["text", "label_", "start", "end", "start_char", "end_char"]
 
 # here we are using streamlit to enable a webapp for the API
 st.title("JD Algorithm")
@@ -59,7 +59,7 @@ if app_mode == "Collect JD details":
         data = json.dumps(example)
     # we only send it once the button is pressed to prevent preemptive erring
     if st.button("Press to send query"):
-        response = requests.post(f"{base_url}/job-details", headers=headers, data=data)
+        response = requests.post(f"{base_url}/job-details", headers=headers, data=data, timeout=1000)
         st.json(response.json())
 
 
@@ -78,25 +78,45 @@ elif app_mode == "Show JD similarity":
                         -   Query the API when you are done!
                         """
                  )
-    access_key = st.text_input("What is your AWS Access Key")
-    secret_key = st.text_input("What is your AWS Secret Key", type='password')
-    is_url = st.checkbox('Is your data URLs or text? check box for URLs')
-    resume_bucket = st.text_input('What is the name of your s3 bucket?')
-    bucket_folder = st.text_input(
-        'What is the name of the folder within your s3 bucket? (leave blank if in top level directory)')
-    textbox = st.text_area("Input your job description text or urls as a list of strings i.e ['url1','url2']",
-                           height=400)
-    # getting a nice list from streamlit isnt convenient so we make the user type in a python list and then literally evaluate it.
-    # There should be a cleaner solution and this should be changed if possible
-    jds = literal_eval(textbox) if is_url else [textbox]
-    headers = {'Content-Type': 'application/json'}
-    data = json.dumps(
-        {"url_present": is_url, "resume_bucket": resume_bucket, "bucket_folder": bucket_folder, "jd": jds,
-         "aws_key": access_key, "aws_secret_key": secret_key})
+    local_aws = st.radio("Are your files stored local or on AWS", ["Local", "AWS"])
+    if local_aws == 'AWS':
+        access_key = st.text_input("What is your AWS Access Key")
+        secret_key = st.text_input("What is your AWS Secret Key", type='password')
+        is_url = st.checkbox('Is your data URLs or text? check box for URLs')
+        resume_bucket = st.text_input('What is the name of your s3 bucket?')
+        bucket_folder = st.text_input(
+            'What is the name of the folder within your s3 bucket? (leave blank if in top level directory)')
+        textbox = st.text_area("Input your job description text or urls as a list of strings i.e ['url1','url2']",
+                               height=400)
+        # getting a nice list from streamlit isnt convenient so we make the user type in a python list and then literally evaluate it.
+        # There should be a cleaner solution and this should be changed if possible
+        jds = literal_eval(textbox) if is_url else [textbox]
+        headers = {'Content-Type': 'application/json'}
+        data = json.dumps(
+            {"url_present": is_url, "resume_bucket": resume_bucket, "bucket_folder": bucket_folder, "jd": jds,
+             "aws_key": access_key, "aws_secret_key": secret_key})
+        if st.button("Press to send query"):
+            response = requests.post(f"{base_url}/similarity", headers=headers, data=data)
+            st.json(response.json())
     # send the request and print the results
-    if st.button("Press to send query"):
-        response = requests.post(f"{base_url}/similarity", headers=headers, data=data)
-        st.json(response.json())
+    if local_aws == 'Local':
+        jds = st.file_uploader("Choose your job descriptions", accept_multiple_files=True)
+        resumes = st.file_uploader("Choose your resumes", accept_multiple_files=True)
+        files = []
+        for i, jd in enumerate(jds):
+            stream = io.BytesIO(jd.getvalue())
+            files.append((f"jd_{jd.name}", stream))
+        for i, resume in enumerate(resumes):
+            stream = io.BytesIO(resume.getvalue())
+            files.append((f"resume_{resume.name}", stream))
+        st.json(files)
+        from sys import getsizeof
+
+        st.write(getsizeof(files[0][1]))
+        if st.button("Press to send query"):
+            response = requests.post('http://127.0.0.1:6000/similarity', files=files)
+            st.json(response.json())
+
 
 elif app_mode == "Visualize NER training data":
     st.header("Visualize training data from the Named Entity model")
