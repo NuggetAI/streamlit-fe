@@ -22,6 +22,7 @@ st.set_option('deprecation.showfileUploaderEncoding', False)
 app_mode = st.sidebar.radio("Choose the app mode",
                             ["Collect JD details", "Show JD similarity",
                              "Visualize NER training data"])
+api_key = st.sidebar.text_input("Please input your API key")
 
 if app_mode == "Collect JD details":
     # we grab a url from the user and send it by http request to the endpoint we want
@@ -44,7 +45,7 @@ if app_mode == "Collect JD details":
     is_text = st.checkbox("Is your input plaintext?")
     ent = st.checkbox("Would you like to see soft skills labeled?")
     exp = st.checkbox("Would you like to see years of experience labeled?")
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
     data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
     example = {
         "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
@@ -91,7 +92,7 @@ elif app_mode == "Show JD similarity":
         # getting a nice list from streamlit isnt convenient so we make the user type in a python list and then literally evaluate it.
         # There should be a cleaner solution and this should be changed if possible
         jds = literal_eval(textbox) if is_url else [textbox]
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
         data = json.dumps(
             {"url_present": is_url, "resume_bucket": resume_bucket, "bucket_folder": bucket_folder, "jd": jds,
              "aws_key": access_key, "aws_secret_key": secret_key})
