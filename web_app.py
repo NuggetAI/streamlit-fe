@@ -25,6 +25,7 @@ app_mode = st.sidebar.radio("Choose the app mode",
                             ["Collect JD details", "Show JD similarity",
                              "Visualize NER training data"])
 api_key = st.sidebar.text_input("Please input your API key")
+session_state = SessionState.get(data=None, col_list=[], file=None, reader=None)
 
 
 def rename(name):
@@ -92,6 +93,7 @@ elif app_mode == "Show JD similarity":
                         """
                  )
     local_aws = st.radio("Are your files stored local or on AWS", ["Local", "AWS"])
+    # todo mix local and AWS for resume
     if local_aws == 'AWS':
         access_key = st.text_input("What is your AWS Access Key")
         secret_key = st.text_input("What is your AWS Secret Key", type='password')
@@ -128,7 +130,7 @@ elif app_mode == "Show JD similarity":
 
 
 elif app_mode == "Visualize NER training data":
-    session_state = SessionState.get(col_list=[], file=None, data=None, reader=None)
+
     st.header("Visualize training data from the Named Entity model")
     st.subheader("""
                         This route is for collecting information about the data used to train NER models.
@@ -142,20 +144,22 @@ elif app_mode == "Visualize NER training data":
                         from the API and then send it off!"""
                  )
     file = st.file_uploader("Upload an NER manifest file")
-    if session_state.file is None or (file is not None and session_state.file != file):
-        session_state.file = file
+
+    if session_state.file_obj is None or (file is not None and session_state.file_obj != file):
+        session_state.file_obj = file
     # Upload a training manifest file and visualize it
     use_ex = st.checkbox("Would you like to use an example file?")
     if use_ex:
-        session_state.file = open('NER-new.manifest', encoding='utf-8')
+        session_state.file_obj = open('NER-new.manifest', encoding='utf-8')
 
-    if session_state.file is not None:
-        session_state.reader = jsonlines.Reader(session_state.file)
+    if file is not None:
+        session_state.reader = jsonlines.Reader(session_state.file_obj)
         lemma = WordNetLemmatizer()
 
-        if session_state.data is None:
-            session_state.data = [obj for obj in session_state.reader]
-        st.write(len(session_state.data))
+        data = [obj for obj in session_state.reader]
+
+        if (session_state.data is None and data) or (data and data != session_state.data):
+            session_state.data = data
 
         data_list = []
         label_count = {}
@@ -177,6 +181,7 @@ elif app_mode == "Visualize NER training data":
                     label_count[entity['label']] = 0
 
         count = {}
+
         # use the prior data list to make a count of all the times a word is associated with a given lavel
         for item in data_list:
             for word in item[0]:
@@ -185,18 +190,18 @@ elif app_mode == "Visualize NER training data":
                 else:
                     count[word.lower()] = {}
                     count[word.lower()][item[1]] = 1
-        # create a datafrome from that count and display it to the user
+        # create a dataframe from that count and display it to the user
         df = pd.DataFrame.from_dict(count)
         df = df.T
         df = df.fillna(0)
         st.dataframe(df)
 
         df = df.rename(rename, axis='columns')
-        session_state.col_list
 
-        if not session_state.col_list:
-            session_state.col_list = tuple(df.columns)
-        session_state.col_list
+        col_list = tuple(df.columns)
+
+        if not session_state.col_list or (col_list and col_list != session_state.col_list):
+            session_state.col_list = col_list
 
         # filter the dataframe based on which labels they want to see
         cols = st.multiselect("What labels would you like to view", session_state.col_list, default=session_state.col_list)
