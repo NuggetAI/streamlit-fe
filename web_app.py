@@ -11,6 +11,8 @@ import streamlit as st
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+import SessionState
+
 base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production'
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -23,6 +25,16 @@ app_mode = st.sidebar.radio("Choose the app mode",
                             ["Collect JD details", "Show JD similarity",
                              "Visualize NER training data"])
 api_key = st.sidebar.text_input("Please input your API key")
+
+
+def rename(name):
+    return name.replace(" ", "_").lower()
+
+
+def remap(key):
+    remap_dict = {"jd-group-1": "batch", "jd-group-2": "batch", "resume-batch1": "batch"}
+    return remap_dict[key] if key in remap_dict.keys() else key
+
 
 if app_mode == "Collect JD details":
     # we grab a url from the user and send it by http request to the endpoint we want
@@ -116,6 +128,7 @@ elif app_mode == "Show JD similarity":
 
 
 elif app_mode == "Visualize NER training data":
+    session_state = SessionState.get(col_list=[], file=None, data=None, reader=None)
     st.header("Visualize training data from the Named Entity model")
     st.subheader("""
                         This route is for collecting information about the data used to train NER models.
@@ -129,26 +142,29 @@ elif app_mode == "Visualize NER training data":
                         from the API and then send it off!"""
                  )
     file = st.file_uploader("Upload an NER manifest file")
+    if session_state.file is None or (file is not None and session_state.file != file):
+        session_state.file = file
     # Upload a training manifest file and visualize it
     use_ex = st.checkbox("Would you like to use an example file?")
     if use_ex:
-        file = open('NER-new.manifest', encoding='utf-8')
+        session_state.file = open('NER-new.manifest', encoding='utf-8')
 
-    if file is not None:
-        reader = jsonlines.Reader(file)
+    if session_state.file is not None:
+        session_state.reader = jsonlines.Reader(session_state.file)
         lemma = WordNetLemmatizer()
 
-        data = [obj for obj in reader]
+        if session_state.data is None:
+            session_state.data = [obj for obj in session_state.reader]
+        st.write(len(session_state.data))
 
         data_list = []
         label_count = {}
-        remap = {"source": "source", "jd-group-1": "jd", "jd-group-2": "jd",
-                 "jd-group-1-metadata": "jd-group-1-metadata", "jd-group-2-metadata": "jd-group-2-metadata"}
         # create a list of words and their labels. Remove all punctuation and stopwords during this process
-        data = [{remap[k]: v for k, v in obj.items()} for obj in data]
-        for jd in data:
+        session_state.data = [{remap(k): v for k, v in obj.items()} for obj in session_state.data]
+
+        for jd in session_state.data:
             description = jd['source']
-            for entity in jd['jd']['annotations']['entities']:  # todo make this different depending on group
+            for entity in jd['batch']['annotations']['entities']:  # todo make this different depending on group
                 begin, end = entity['startOffset'], entity['endOffset']
                 labeled_words = description[begin:end].translate(
                     str.maketrans(string.punctuation, ' ' * len(string.punctuation))).split(" ")
@@ -174,26 +190,29 @@ elif app_mode == "Visualize NER training data":
         df = df.T
         df = df.fillna(0)
         st.dataframe(df)
+
+        df = df.rename(rename, axis='columns')
+        session_state.col_list
+
+        if not session_state.col_list:
+            session_state.col_list = tuple(df.columns)
+        session_state.col_list
+
         # filter the dataframe based on which labels they want to see
-        cols = st.multiselect("What labels would you like to view",
-                              ("teamwork", "problem solving ", "interpersonal sensitivity", "organization",
-                               "communication",
-                               "leadership", "project management"),
-                              default=("teamwork", "problem solving ", "interpersonal sensitivity", "organization",
-                                       "communication",
-                                       "leadership", "project management"))
+        cols = st.multiselect("What labels would you like to view", session_state.col_list, default=session_state.col_list)
         # filter the dataframe based on the number of occurrences of a word
         filter_num = st.slider("How many minimum occurrences do you need", 0, 100, value=15)
         df = df[cols]
         df['sums'] = df.sum(axis=1)
 
         df = df[df.sums > filter_num]
-        df.drop(columns=['sums'], inplace=True)
+        df = df.drop(columns=['sums'])
         # create a bar chart with a bar for every word
         st.bar_chart(df)
 
         st.text("Total Labels")
         # display the total words labeled per soft skill
+
         for k, v in label_count.items():
             label_count[k] = {'count': v}
         labels_df = pd.DataFrame.from_dict(label_count)
