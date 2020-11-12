@@ -11,6 +11,8 @@ import streamlit as st
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+import SessionState
+
 base_url = 'https://ry5tpjc0ci.execute-api.us-east-2.amazonaws.com/production'
 nltk.download('stopwords')
 nltk.download('wordnet')
@@ -22,6 +24,18 @@ st.set_option('deprecation.showfileUploaderEncoding', False)
 app_mode = st.sidebar.radio("Choose the app mode",
                             ["Collect JD details", "Show JD similarity",
                              "Visualize NER training data"])
+api_key = st.sidebar.text_input("Please input your API key")
+session_state = SessionState.get(data=None, col_list=[], file=None, reader=None)
+
+
+def rename(name):
+    return name.replace(" ", "_").lower()
+
+
+def remap(key):
+    remap_dict = {"jd-group-1": "batch", "jd-group-2": "batch", "resume-batch1": "batch"}
+    return remap_dict[key] if key in remap_dict.keys() else key
+
 
 if app_mode == "Collect JD details":
     # we grab a url from the user and send it by http request to the endpoint we want
@@ -44,7 +58,7 @@ if app_mode == "Collect JD details":
     is_text = st.checkbox("Is your input plaintext?")
     ent = st.checkbox("Would you like to see soft skills labeled?")
     exp = st.checkbox("Would you like to see years of experience labeled?")
-    headers = {'Content-Type': 'application/json'}
+    headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
     data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
     example = {
         "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
@@ -79,6 +93,7 @@ elif app_mode == "Show JD similarity":
                         """
                  )
     local_aws = st.radio("Are your files stored local or on AWS", ["Local", "AWS"])
+    # todo mix local and AWS for resume
     if local_aws == 'AWS':
         access_key = st.text_input("What is your AWS Access Key")
         secret_key = st.text_input("What is your AWS Secret Key", type='password')
@@ -91,7 +106,7 @@ elif app_mode == "Show JD similarity":
         # getting a nice list from streamlit isnt convenient so we make the user type in a python list and then literally evaluate it.
         # There should be a cleaner solution and this should be changed if possible
         jds = literal_eval(textbox) if is_url else [textbox]
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
         data = json.dumps(
             {"url_present": is_url, "resume_bucket": resume_bucket, "bucket_folder": bucket_folder, "jd": jds,
              "aws_key": access_key, "aws_secret_key": secret_key})
@@ -115,6 +130,7 @@ elif app_mode == "Show JD similarity":
 
 
 elif app_mode == "Visualize NER training data":
+
     st.header("Visualize training data from the Named Entity model")
     st.subheader("""
                         This route is for collecting information about the data used to train NER models.
@@ -128,26 +144,31 @@ elif app_mode == "Visualize NER training data":
                         from the API and then send it off!"""
                  )
     file = st.file_uploader("Upload an NER manifest file")
+
+    if session_state.file_obj is None or (file is not None and session_state.file_obj != file):
+        session_state.file_obj = file
     # Upload a training manifest file and visualize it
     use_ex = st.checkbox("Would you like to use an example file?")
     if use_ex:
-        file = open('NER-new.manifest', encoding='utf-8')
+        session_state.file_obj = open('NER-new.manifest', encoding='utf-8')
 
     if file is not None:
-        reader = jsonlines.Reader(file)
+        session_state.reader = jsonlines.Reader(session_state.file_obj)
         lemma = WordNetLemmatizer()
 
-        data = [obj for obj in reader]
+        data = [obj for obj in session_state.reader]
+
+        if (session_state.data is None and data) or (data and data != session_state.data):
+            session_state.data = data
 
         data_list = []
         label_count = {}
-        remap = {"source": "source", "jd-group-1": "jd", "jd-group-2": "jd",
-                 "jd-group-1-metadata": "jd-group-1-metadata", "jd-group-2-metadata": "jd-group-2-metadata"}
         # create a list of words and their labels. Remove all punctuation and stopwords during this process
-        data = [{remap[k]: v for k, v in obj.items()} for obj in data]
-        for jd in data:
+        session_state.data = [{remap(k): v for k, v in obj.items()} for obj in session_state.data]
+
+        for jd in session_state.data:
             description = jd['source']
-            for entity in jd['jd']['annotations']['entities']:  # todo make this different depending on group
+            for entity in jd['batch']['annotations']['entities']:  # todo make this different depending on group
                 begin, end = entity['startOffset'], entity['endOffset']
                 labeled_words = description[begin:end].translate(
                     str.maketrans(string.punctuation, ' ' * len(string.punctuation))).split(" ")
@@ -160,6 +181,7 @@ elif app_mode == "Visualize NER training data":
                     label_count[entity['label']] = 0
 
         count = {}
+
         # use the prior data list to make a count of all the times a word is associated with a given lavel
         for item in data_list:
             for word in item[0]:
@@ -168,31 +190,34 @@ elif app_mode == "Visualize NER training data":
                 else:
                     count[word.lower()] = {}
                     count[word.lower()][item[1]] = 1
-        # create a datafrome from that count and display it to the user
+        # create a dataframe from that count and display it to the user
         df = pd.DataFrame.from_dict(count)
         df = df.T
         df = df.fillna(0)
         st.dataframe(df)
+
+        df = df.rename(rename, axis='columns')
+
+        col_list = tuple(df.columns)
+
+        if not session_state.col_list or (col_list and col_list != session_state.col_list):
+            session_state.col_list = col_list
+
         # filter the dataframe based on which labels they want to see
-        cols = st.multiselect("What labels would you like to view",
-                              ("teamwork", "problem solving ", "interpersonal sensitivity", "organization",
-                               "communication",
-                               "leadership", "project management"),
-                              default=("teamwork", "problem solving ", "interpersonal sensitivity", "organization",
-                                       "communication",
-                                       "leadership", "project management"))
+        cols = st.multiselect("What labels would you like to view", session_state.col_list, default=session_state.col_list)
         # filter the dataframe based on the number of occurrences of a word
         filter_num = st.slider("How many minimum occurrences do you need", 0, 100, value=15)
         df = df[cols]
         df['sums'] = df.sum(axis=1)
 
         df = df[df.sums > filter_num]
-        df.drop(columns=['sums'], inplace=True)
+        df = df.drop(columns=['sums'])
         # create a bar chart with a bar for every word
         st.bar_chart(df)
 
         st.text("Total Labels")
         # display the total words labeled per soft skill
+
         for k, v in label_count.items():
             label_count[k] = {'count': v}
         labels_df = pd.DataFrame.from_dict(label_count)
