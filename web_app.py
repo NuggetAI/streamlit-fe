@@ -25,7 +25,7 @@ app_mode = st.sidebar.radio("Choose the app mode",
                             ["Collect JD details", "Show JD similarity",
                              "Visualize NER training data"])
 api_key = st.sidebar.text_input("Please input your API key")
-session_state = SessionState.get(data=None, col_list=[], file=None, reader=None)
+session_state = SessionState.get(data=None, col_list=[], file_obj=None, reader=None)
 
 
 def rename(name):
