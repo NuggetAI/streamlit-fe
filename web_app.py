@@ -19,6 +19,7 @@ nltk.download('wordnet')
 
 # here we are using streamlit to enable a webapp for the API
 st.title("JD Algorithm")
+st.sidebar.title("Menu Select")
 st.set_option('deprecation.showfileUploaderEncoding', False)
 # This lets us select different screens in streamlits sidebar
 app_mode = st.sidebar.radio("Choose the app mode",
@@ -58,8 +59,9 @@ if app_mode == "Collect JD details":
     is_text = st.checkbox("Is your input plaintext?")
     ent = st.checkbox("Would you like to see soft skills labeled?")
     exp = st.checkbox("Would you like to see years of experience labeled?")
+    req = st.checkbox("Would you like to see required and desired features?")
     headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
-    data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp})
+    data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp, "get_req": req})
     example = {
         "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
         "is_text": False,
