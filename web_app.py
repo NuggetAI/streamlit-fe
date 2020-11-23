@@ -48,25 +48,27 @@ if app_mode == "Collect JD details":
                     such as what soft skills are relevant to the job and where are they present in the text as well as the years of experience certain skills require.
                     To use the API 
                     
-                    -   paste in the URL to the job description you are searching for,
-                     make sure the URL is to the Job page and not your search page!
+                    -   paste in either a URL or a plaintext job description. Only 1 at a time, if both are inputted the app will default to using the url.
                     
                     -   Use the checkboxes to indicate what information you want to get 
                     from the API and then send it off!"""
                  )
 
-    url = str(st.text_area("url"))
-    is_text = st.checkbox("Is your input plaintext?")
+    url = st.text_input("if your input is a url, please input a url")
+    text = st.text_area("If your input is plaintext, please input plaintext")
     ent = st.checkbox("Would you like to see soft skills labeled?")
     exp = st.checkbox("Would you like to see years of experience labeled?")
     req = st.checkbox("Would you like to see required and desired features?")
     headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
-    data = json.dumps({"url": url, "is_text": is_text, "get_ents": ent, "get_exp": exp, "get_req": req})
+    if url:
+        data = json.dumps({"url": url, "get_ents": ent, "get_exp": exp, "get_req": req})
+    elif text:
+        data = json.dumps({"text": text, "get_ents": ent, "get_exp": exp, "get_req": req})
     example = {
         "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
-        "is_text": False,
         "get_ents": True,
-        "get_exp": True}
+        "get_exp": True,
+        "get_req":True}
 
     st.subheader("Example Query")
     st.json(example)
