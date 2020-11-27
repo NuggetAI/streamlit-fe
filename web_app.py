@@ -119,7 +119,7 @@ elif app_mode == "Show JD similarity":
             st.json(response.json())
     # send the request and print the results
     if local_aws == 'Local':
-        headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
+        headers = {'x-api-key': api_key}
         jds = st.file_uploader("Choose your job descriptions", accept_multiple_files=True)
         resumes = st.file_uploader("Choose your resumes", accept_multiple_files=True)
         files = []
