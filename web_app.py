@@ -68,7 +68,7 @@ if app_mode == "Collect JD details":
         "url": "https://job-openings.monster.ca/telecommunications-designer-victoria-bc-ca-primary-engineering-construction/221632928",
         "get_ents": True,
         "get_exp": True,
-        "get_req":True}
+        "get_req": True}
 
     st.subheader("Example Query")
     st.json(example)
@@ -119,6 +119,7 @@ elif app_mode == "Show JD similarity":
             st.json(response.json())
     # send the request and print the results
     if local_aws == 'Local':
+        headers = {'Content-Type': 'application/json', 'x-api-key': api_key}
         jds = st.file_uploader("Choose your job descriptions", accept_multiple_files=True)
         resumes = st.file_uploader("Choose your resumes", accept_multiple_files=True)
         files = []
@@ -129,7 +130,7 @@ elif app_mode == "Show JD similarity":
             stream = io.BytesIO(resume.getvalue())
             files.append((f"resume_{resume.name}", stream))
         if st.button("Press to send query"):
-            response = requests.post(f'{base_url}/similarity', files=files)
+            response = requests.post(f'{base_url}/similarity', files=files, headers=headers)
             st.json(response.json())
 
 
@@ -208,7 +209,8 @@ elif app_mode == "Visualize NER training data":
             session_state.col_list = col_list
 
         # filter the dataframe based on which labels they want to see
-        cols = st.multiselect("What labels would you like to view", session_state.col_list, default=session_state.col_list)
+        cols = st.multiselect("What labels would you like to view", session_state.col_list,
+                              default=session_state.col_list)
         # filter the dataframe based on the number of occurrences of a word
         filter_num = st.slider("How many minimum occurrences do you need", 0, 100, value=15)
         df = df[cols]
